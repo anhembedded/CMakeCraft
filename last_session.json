@@ -1,0 +1,9 @@
+{
+    "project_name": "hhh",
+    "namespace": "B",
+    "prefix": "K",
+    "suffix": "j",
+    "output_dir": "C:\\Users\\dovan\\HoangAnh\\Code\\Module\\Cmake_Module_Create_Tool",
+    "gtest_url": "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip",
+    "overwrite": true
+}
