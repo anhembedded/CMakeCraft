@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, RichLog, Label, Input, Button, Static, Switch
+from textual.widgets import Header, Footer, RichLog, Label, Input, Button, Static, Switch, RadioSet, RadioButton, Select
 from textual.screen import Screen
 from textual.containers import Container, Vertical, Horizontal
 from textual.message import Message
@@ -75,11 +75,26 @@ class WizardScreen(Screen):
                 id="output_dir"
             )
             
-            yield Label("GoogleTest Repository URL:")
-            yield Input(
-                value=self.initial_data.get("gtest_url", "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"), 
-                id="gtest_url"
-            )
+            yield Label("GoogleTest Source:")
+            with RadioSet(id="gtest_mode"):
+                yield RadioButton("Fetch from URL", id="mode-url", value=not self.initial_data.get("gtest_is_local", False))
+                yield RadioButton("Copy from Local (GoogleTestScr)", id="mode-local", value=self.initial_data.get("gtest_is_local", False))
+
+            with Vertical(id="gtest-url-container", classes="" if not self.initial_data.get("gtest_is_local", False) else "hidden"):
+                yield Label("GoogleTest Repository URL:")
+                yield Input(
+                    value=self.initial_data.get("gtest_url", "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"), 
+                    id="gtest_url"
+                )
+            
+            with Vertical(id="gtest-local-container", classes="" if self.initial_data.get("gtest_is_local", False) else "hidden"):
+                yield Label("Select Local Version:")
+                versions = self.scan_gtest_versions()
+                yield Select(
+                    [(v, v) for v in versions],
+                    value=self.initial_data.get("gtest_local_version") if self.initial_data.get("gtest_local_version") in versions else (versions[0] if versions else None),
+                    id="gtest_local_version"
+                )
 
             with Horizontal(id="switch-container"):
                 yield Switch(value=self.initial_data.get("overwrite", False), id="overwrite")
@@ -89,6 +104,21 @@ class WizardScreen(Screen):
                 yield Button("RESET", variant="error", id="reset")
                 yield Button("GENERATE MODULE", variant="primary", id="submit")
         yield Footer()
+ 
+    def scan_gtest_versions(self):
+        base_dir = "GoogleTestScr"
+        if os.path.exists(base_dir) and os.path.isdir(base_dir):
+            try:
+                return [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+            except Exception:
+                return []
+        return []
+ 
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        if event.radio_set.id == "gtest_mode":
+            is_local = event.pressed.id == "mode-local"
+            self.query_one("#gtest-url-container").set_class(is_local, "hidden")
+            self.query_one("#gtest-local-container").set_class(not is_local, "hidden")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Real-time validation of identifier-naming."""
@@ -137,9 +167,10 @@ class WizardScreen(Screen):
             input_widget.value = ""
         self.query_one("#overwrite", Switch).value = False
         self.query_one("#output_dir", Input).value = "./"
+        self.query_one("#mode-url", RadioButton).value = True
         self.query_one("#gtest_url", Input).value = "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"
         self.validate_form()
-
+ 
     def submit_form(self) -> None:
         config_data = {
             "project_name": self.query_one("#project_name", Input).value,
@@ -147,7 +178,9 @@ class WizardScreen(Screen):
             "prefix": self.query_one("#prefix", Input).value,
             "suffix": self.query_one("#suffix", Input).value,
             "output_dir": self.query_one("#output_dir", Input).value,
+            "gtest_is_local": self.query_one("#mode-local", RadioButton).value,
             "gtest_url": self.query_one("#gtest_url", Input).value,
+            "gtest_local_version": self.query_one("#gtest_local_version", Select).value,
             "overwrite": self.query_one("#overwrite", Switch).value,
         }
         # Clean empty values but keep boolean
@@ -355,7 +388,9 @@ class ModuleGeneratorApp(App):
                     "prefix": wizard.query_one("#prefix", Input).value,
                     "suffix": wizard.query_one("#suffix", Input).value,
                     "output_dir": wizard.query_one("#output_dir", Input).value,
+                    "gtest_is_local": wizard.query_one("#mode-local", RadioButton).value,
                     "gtest_url": wizard.query_one("#gtest_url", Input).value,
+                    "gtest_local_version": wizard.query_one("#gtest_local_version", Select).value,
                     "overwrite": wizard.query_one("#overwrite", Switch).value,
                 }
                 # Clean empty values

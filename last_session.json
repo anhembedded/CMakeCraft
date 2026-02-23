@@ -1,7 +1,9 @@
 {
     "project_name": "Lib_MotorDriver",
     "namespace": "Lib",
-    "output_dir": "C:\\Users\\hoang\\Desktop\\software-architecture\\Code\\MotorDriver\\",
+    "output_dir": "C:\\Users\\hoang\\Desktop\\TestLocalGtest",
+    "gtest_is_local": true,
     "gtest_url": "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip",
+    "gtest_local_version": "googletest-1.17.0",
     "overwrite": true
 }

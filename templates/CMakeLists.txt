@@ -42,3 +42,13 @@ option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+# Helpful messages
+message(STATUS "-----------------------------------------------------------")
+message(STATUS "  {{PROJECT_NAME}} Configuration Complete")
+message(STATUS "  - Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  - Testing:    ${BUILD_TESTING}")
+message(STATUS "  - Coverage:   ${ENABLE_COVERAGE}")
+message(STATUS "-----------------------------------------------------------")
+message(STATUS "💡 TIP: Use './script/auto_run.ps1' for one-click build & test.")
+message(STATUS "-----------------------------------------------------------")

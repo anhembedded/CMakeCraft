@@ -44,14 +44,33 @@ class Storyteller:
     def get_replacements(self):
         """Returns the dictionary of strings to be replaced in templates."""
         full_name = self.folder_name
+        
+        # Build hardcoded GTest declaration
+        if self.config.get('gtest_is_local'):
+            gtest_decl = (
+                "FetchContent_Declare(\n"
+                "    googletest\n"
+                "    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest\n"
+                ")"
+            )
+        else:
+            gtest_url = self.config.get('gtest_url', 'https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip')
+            gtest_decl = (
+                "FetchContent_Declare(\n"
+                "    googletest\n"
+                f"    URL {gtest_url}\n"
+                "    DOWNLOAD_EXTRACT_TIMESTAMP TRUE\n"
+                ")"
+            )
+
         return {
             '{{PROJECT_NAME}}': full_name,
             '{{NAMESPACE}}': self.config['namespace'],
-            '{{GTEST_URL}}': self.config['gtest_url'],
+            '{{GTEST_DECLARATION}}': gtest_decl,
             '{{AUTHOR}}': self.config.get('author', 'Artisan'),
             '{{DESCRIPTION}}': self.config.get('description', 'A module of great potential'),
-            '{{PREFIX}}': self.config['prefix'],
-            '{{SUFFIX}}': self.config['suffix']
+            '{{PREFIX}}': self.config.get('prefix', ''),
+            '{{SUFFIX}}': self.config.get('suffix', '')
         }
 
     @property

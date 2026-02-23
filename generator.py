@@ -13,6 +13,8 @@ def main():
     parser.add_argument("-p", "--prefix", help="Folder/File prefix", default="")
     parser.add_argument("-s", "--suffix", help="Folder/File suffix", default="")
     parser.add_argument("-g", "--gtest", help="GTest URL")
+    parser.add_argument("--gtest-local", action="store_true", help="Use local copy from GoogleTestScr")
+    parser.add_argument("--gtest-version", help="Version folder inside GoogleTestScr")
     parser.add_argument("-o", "--output", help="Output directory")
     parser.add_argument("--silent", action="store_true", help="Run without TUI (console output only)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing module directory")
@@ -49,6 +51,8 @@ def main():
         if args.prefix: config['prefix'] = args.prefix
         if args.suffix: config['suffix'] = args.suffix
         if args.gtest: config['gtest_url'] = args.gtest
+        if args.gtest_local: config['gtest_is_local'] = True
+        if args.gtest_version: config['gtest_local_version'] = args.gtest_version
         if args.output: config['output_dir'] = args.output
         if args.overwrite: config['overwrite'] = True
 

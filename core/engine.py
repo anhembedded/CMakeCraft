@@ -1,4 +1,5 @@
 import os
+import shutil
 from .exceptions import FileSystemError, TemplateError
 
 class Builder:
@@ -50,7 +51,25 @@ class Builder:
                     with open(target_file_path, 'w', encoding='utf-8') as f:
                         f.write(content)
                     
-                    if callback:
                         callback(f"  - Manifested: {os.path.abspath(target_file_path)}")
                 except Exception as e:
                     raise TemplateError(f"Failure in the forge during creation of {file_name}: {str(e)}")
+        
+        # Second, handle local GTest copy if requested
+        if self.storyteller.config.get('gtest_is_local'):
+            version = self.storyteller.config.get('gtest_local_version')
+            if version:
+                source_gtest = os.path.join("GoogleTestScr", version)
+                target_gtest = os.path.join(self.output_path, "tests", "third_party", "googletest")
+                
+                if os.path.exists(source_gtest):
+                    try:
+                        if callback: callback(f"Importing ancient scrolls: Copying {version} to module...")
+                        if os.path.exists(target_gtest):
+                            shutil.rmtree(target_gtest)
+                        shutil.copytree(source_gtest, target_gtest)
+                        if callback: callback(f"  [green]✓[/] GTest imported to {os.path.abspath(target_gtest)}")
+                    except Exception as e:
+                        raise FileSystemError(f"Failed to copy local GTest: {str(e)}")
+                else:
+                    if callback: callback(f"  [red]⚠[/] Local GTest source not found at {source_gtest}")

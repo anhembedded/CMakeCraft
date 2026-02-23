@@ -8,13 +8,33 @@ param (
     [switch]$Coverage,
     [string]$Config = "Debug",
     [switch]$Verbose,
-    [switch]$All
+    [switch]$All,
+    [switch]$Help
 )
+
+if ($Help) {
+    Write-Host "Usage: ./auto_run.ps1 [options]" -ForegroundColor Cyan
+    Write-Host "Options:"
+    Write-Host "  -Build      Configure and build the project"
+    Write-Host "  -Test       Run unit tests"
+    Write-Host "  -Example    Build and run examples"
+    Write-Host "  -Clean      Remove the build directory"
+    Write-Host "  -Lint       Run static analysis (clang-tidy)"
+    Write-Host "  -Format     Format code (clang-format)"
+    Write-Host "  -Coverage   Generate code coverage report"
+    Write-Host "  -Config     Build configuration (Debug, Release, etc.) [Default: Debug]"
+    Write-Host "  -Verbose    Enable verbose output"
+    Write-Host "  -All        Run all steps (Clean, Build, Test, Example, Lint, Format)"
+    Write-Host "  -Help       Show this help message"
+    Read-Host "Press Enter to exit..."
+    exit 0
+}
 
 function Test-CommandAvailability {
     param ([string]$CommandName)
     if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
         Write-Error "Error: '$CommandName' is not installed or not in PATH."
+        Read-Host "Press Enter to exit..."
         exit 1
     }
 }
@@ -30,6 +50,7 @@ function Invoke-Step {
     }
     catch {
         Write-Error "Step '$StepName' failed: $_"
+        Read-Host "Press Enter to exit..."
         exit 1
     }
 }
@@ -80,7 +101,8 @@ if ($Build -or $All) {
         }
 
         Write-Host "Building..."
-        $BuildCmd = @("--build", $BuildDir, "--config", $Config)
+        # Use all available CPU cores for faster build
+        $BuildCmd = @("--build", $BuildDir, "--config", $Config, "--parallel", $env:NUMBER_OF_PROCESSORS)
         if ($Verbose) { $BuildCmd += "--verbose" }
         & cmake $BuildCmd
         if ($LASTEXITCODE -ne 0) { throw "Build failed" }
@@ -143,6 +165,10 @@ if ($Coverage) {
                 & lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' --output-file coverage.info
                 & genhtml coverage.info --output-directory coverage_report
                 Write-Host "Coverage report generated in: coverage_report/index.html" -ForegroundColor Green
+                # Auto-open the report in the browser
+                if (Test-Path "$SourceDir/build/coverage_report/index.html") {
+                    Start-Process "$SourceDir/build/coverage_report/index.html"
+                }
             }
             else {
                 Write-Warning "lcov not found. Skipping coverage."
@@ -169,4 +195,5 @@ if ($Example -or $All) {
 }
 
 Write-Host "All requested steps completed successfully!" -ForegroundColor Green
+Read-Host "Press Enter to exit..."
 exit 0
