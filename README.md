@@ -5,11 +5,11 @@ A professional tool to automate the creation of C++ module templates following a
 ## 🌟 Features
 
 - **Modern TUI**: Interactive Terminal UI powered by [Textual](https://textual.textualize.io/).
-- **Storytelling Logic**: Descriptive generation process that explains each step.
 - **Full Boilerplate**: Generates Public Interface, Private Implementation, Unit Tests (GTest), and Examples.
-- **Configurable**: Support for JSON configuration files and CLI overrides.
-- **Custom Output**: Generate modules anywhere on your system.
-- **Automation Ready**: Includes `auto_run.ps1` in every generated module for one-click build/test.
+- **Static Analysis & Formatting**: Pre-configured `.clang-format` and `.clang-tidy` for high code quality.
+- **CI/CD Ready**: Auto-generates GitHub Actions workflow for building, testing, and linting.
+- **Code Coverage**: Integrated support for `gcov`/`lcov` with HTML report generation.
+- **Automation Pro**: Enhanced `auto_run.ps1` script for Build, Test, Format, Lint, and Coverage in one click.
 
 ## 🚀 Getting Started
 
