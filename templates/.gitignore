@@ -4,3 +4,8 @@ install/
 out/
 *.user
 *.suo
+# Coverage
+coverage.info
+coverage_report/
+# Compiler DB
+compile_commands.json
