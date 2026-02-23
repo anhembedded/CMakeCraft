@@ -1,15 +1,32 @@
 cmake_minimum_required(VERSION 3.14)
 project({{PROJECT_NAME}} LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD {{CPP_STD}})
+set(CMAKE_CXX_STANDARD_REQUIRED {{CPP_STD_REQ}})
+set(CMAKE_EXPORT_COMPILE_COMMANDS {{EXPORT_CMDS}})
 
 # Enable warnings
 if(MSVC)
     add_compile_options(/W4)
+    if({{WERROR}})
+        add_compile_options(/WX)
+    endif()
 else()
     add_compile_options(-Wall -Wextra -Wpedantic)
+    if({{WERROR}})
+        add_compile_options(-Werror)
+    endif()
+endif()
+
+# Interprocedural Optimization (LTO)
+if({{LTO}})
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if(ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    else()
+        message(STATUS "LTO not supported: ${ipo_error}")
+    endif()
 endif()
 
 # Coverage support
@@ -20,7 +37,7 @@ if(ENABLE_COVERAGE AND NOT MSVC)
 endif()
 
 # Create library
-add_library({{PROJECT_NAME}} STATIC src/{{PROJECT_NAME}}.cpp)
+add_library({{PROJECT_NAME}} {{LIB_TYPE}} src/{{PROJECT_NAME}}.cpp)
 
 # Include directories
 target_include_directories({{PROJECT_NAME}}

@@ -2,9 +2,9 @@ import asyncio
 import os
 import re
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, RichLog, Label, Input, Button, Static, Switch, RadioSet, RadioButton, Select
+from textual.widgets import Header, Footer, RichLog, Label, Input, Button, Static, Switch, RadioSet, RadioButton, Select, Collapsible
 from textual.screen import Screen
-from textual.containers import Container, Vertical, Horizontal
+from textual.containers import Container, Vertical, Horizontal, VerticalScroll
 from textual.message import Message
 import json
 
@@ -33,78 +33,141 @@ class WizardScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Vertical(id="wizard-container"):
-            yield Label("MODULE GENERATION WIZARD", id="wizard-title")
+        with VerticalScroll(id="wizard-container"):
+            yield Label("💎 C++ MODULE ARTISAN", id="wizard-title")
             
-            yield Label("Project Name:")
-            yield Input(
-                value=self.initial_data.get("project_name", ""),
-                placeholder="e.g. MyModule", 
-                id="project_name"
-            )
-            
-            yield Label("C++ Namespace:")
-            yield Input(
-                value=self.initial_data.get("namespace", ""),
-                placeholder="e.g. my_namespace", 
-                id="namespace"
-            )
-            
-            yield Static("", id="validation-msg")
+            with Vertical(classes="section"):
+                yield Label("📦 MODULE IDENTITY", classes="section-title")
+                with Horizontal(classes="col-container"):
+                    with Vertical(classes="col"):
+                        yield Label("Module Name:")
+                        yield Input(
+                            value=self.initial_data.get("module_name", ""),
+                            placeholder="e.g. MyModule", 
+                            id="module_name",
+                            tooltip="The base name of your module. Used for generating file names and CMake targets."
+                        )
+                    with Vertical(classes="col"):
+                        yield Label("C++ Namespace:")
+                        yield Input(
+                            value=self.initial_data.get("namespace", ""),
+                            placeholder="e.g. my_namespace", 
+                            id="namespace",
+                            tooltip="The C++ namespace for your code. Use lower_case_with_underscores."
+                        )
+                
+                yield Static("", id="validation-msg")
 
-            with Horizontal():
-                with Vertical():
-                    yield Label("Prefix:")
-                    yield Input(
-                        value=self.initial_data.get("prefix", ""),
-                        placeholder="(Optional)", 
-                        id="prefix"
-                    )
-                with Vertical():
-                    yield Label("Suffix:")
-                    yield Input(
-                        value=self.initial_data.get("suffix", ""),
-                        placeholder="(Optional)", 
-                        id="suffix"
-                    )
+                with Horizontal(classes="col-container"):
+                    with Vertical(classes="col"):
+                        yield Label("Prefix:")
+                        yield Input(
+                            value=self.initial_data.get("prefix", ""),
+                            placeholder="(Optional)", 
+                            id="prefix",
+                            tooltip="Text prepended to the module name (e.g., 'Lib_')."
+                        )
+                    with Vertical(classes="col"):
+                        yield Label("Suffix:")
+                        yield Input(
+                            value=self.initial_data.get("suffix", ""),
+                            placeholder="(Optional)", 
+                            id="suffix",
+                            tooltip="Text appended to the module name (e.g., '_Internal')."
+                        )
             
-            yield Label("Target Output Directory:")
-            yield Input(
-                value=self.initial_data.get("output_dir", "./"),
-                placeholder="./", 
-                id="output_dir"
-            )
-            
-            yield Label("GoogleTest Source:")
-            with RadioSet(id="gtest_mode"):
-                yield RadioButton("Fetch from URL", id="mode-url", value=not self.initial_data.get("gtest_is_local", False))
-                yield RadioButton("Copy from Local (GoogleTestScr)", id="mode-local", value=self.initial_data.get("gtest_is_local", False))
-
-            with Vertical(id="gtest-url-container", classes="" if not self.initial_data.get("gtest_is_local", False) else "hidden"):
-                yield Label("GoogleTest Repository URL:")
+            with Vertical(classes="section"):
+                yield Label("📂 OUTPUT & OVERWRITE", classes="section-title")
+                yield Label("Target Output Directory:")
                 yield Input(
-                    value=self.initial_data.get("gtest_url", "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"), 
-                    id="gtest_url"
+                    value=self.initial_data.get("output_dir", "./"),
+                    placeholder="./", 
+                    id="output_dir",
+                    tooltip="Where the magic happens. The module's root folder will be created here."
                 )
-            
-            with Vertical(id="gtest-local-container", classes="" if self.initial_data.get("gtest_is_local", False) else "hidden"):
-                yield Label("Select Local Version:")
-                versions = self.scan_gtest_versions()
-                yield Select(
-                    [(v, v) for v in versions],
-                    value=self.initial_data.get("gtest_local_version") if self.initial_data.get("gtest_local_version") in versions else (versions[0] if versions else None),
-                    id="gtest_local_version"
-                )
+                with Horizontal(id="switch-container"):
+                    yield Switch(value=self.initial_data.get("overwrite", False), id="overwrite")
+                    yield Label("Overwrite existing directory", id="switch-label")
 
-            with Horizontal(id="switch-container"):
-                yield Switch(value=self.initial_data.get("overwrite", False), id="overwrite")
-                yield Label("Overwrite existing directory", id="switch-label")
-            
+            with Collapsible(title="🧪 GOOGLE TEST SETUP", id="gtest-config"):
+                with Horizontal(classes="col-container"):
+                    with Vertical(classes="col", id="gtest-mode-col"):
+                        yield Label("Source Mode:")
+                        with RadioSet(id="gtest_mode"):
+                            yield RadioButton("Fetch URL", id="mode-url", value=not self.initial_data.get("gtest_is_local", False))
+                            yield RadioButton("Local Scr", id="mode-local", value=self.initial_data.get("gtest_is_local", False))
+
+                    with Vertical(classes="col"):
+                        with Vertical(id="gtest-url-container", classes="" if not self.initial_data.get("gtest_is_local", False) else "hidden"):
+                            yield Label("Repository URL:")
+                            yield Input(
+                                value=self.initial_data.get("gtest_url", "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"), 
+                                id="gtest_url",
+                                tooltip="URL to download GoogleTest archive."
+                            )
+                        
+                        with Vertical(id="gtest-local-container", classes="" if self.initial_data.get("gtest_is_local", False) else "hidden"):
+                            yield Label("Select Local Version:")
+                            versions = self.scan_gtest_versions()
+                            yield Select(
+                                [(v, v) for v in versions],
+                                value=self.initial_data.get("gtest_local_version") if self.initial_data.get("gtest_local_version") in versions else (versions[0] if versions else None),
+                                id="gtest_local_version",
+                                tooltip="Physical copy from your GoogleTestScr directory."
+                            )
+
+            with Collapsible(title="⚙️ ADVANCED CONFIGURATION (C++, LINT, DOCS)", id="advanced-config"):
+                with Horizontal(classes="col-container"):
+                    with Vertical(classes="col"):
+                        yield Label("C++ Standard")
+                        yield Select(
+                            [("11", "11"), ("14", "14"), ("17", "17"), ("20", "20"), ("23", "23")],
+                            value=self.initial_data.get("cpp_std", "17"),
+                            id="cpp_std",
+                            tooltip="Specifies the C++ language level."
+                        )
+                    with Vertical(classes="col"):
+                        yield Label("Library Type")
+                        with RadioSet(id="lib_type", tooltip="STATIC or SHARED (.dll/.so)."):
+                            yield RadioButton("STATIC", id="lib-static", value=self.initial_data.get("lib_type", "STATIC") == "STATIC")
+                            yield RadioButton("SHARED", id="lib-shared", value=self.initial_data.get("lib_type", "STATIC") == "SHARED")
+                
+                with Horizontal(classes="switch-grid"):
+                    with Vertical(classes="switch-col"):
+                        yield Label("CMake Settings", classes="sub-title")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("cpp_std_req", True), id="cpp_std_req")
+                            yield Label("Std Required")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("export_cmds", True), id="export_cmds")
+                            yield Label("Export Cmds")
+                    
+                    with Vertical(classes="switch-col"):
+                        yield Label("Build Quality", classes="sub-title")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("werror", False), id="werror")
+                            yield Label("Werror")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("lto", False), id="lto")
+                            yield Label("LTO")
+
+                    with Vertical(classes="switch-col"):
+                        yield Label("Templates", classes="sub-title")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("gen_format", True), id="gen_format")
+                            yield Label(".format")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("gen_tidy", True), id="gen_tidy")
+                            yield Label(".tidy")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("gen_readme", True), id="gen_readme")
+                            yield Label("README")
+
             with Horizontal(id="button-container"):
-                yield Button("RESET", variant="error", id="reset")
-                yield Button("GENERATE MODULE", variant="primary", id="submit")
+                yield Button("FACTORY RESET", variant="error", id="reset")
+                yield Button("CREATE MODULE", variant="primary", id="submit")
         yield Footer()
- 
+
     def scan_gtest_versions(self):
         base_dir = "GoogleTestScr"
         if os.path.exists(base_dir) and os.path.isdir(base_dir):
@@ -113,7 +176,7 @@ class WizardScreen(Screen):
             except Exception:
                 return []
         return []
- 
+
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
         if event.radio_set.id == "gtest_mode":
             is_local = event.pressed.id == "mode-local"
@@ -122,11 +185,11 @@ class WizardScreen(Screen):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Real-time validation of identifier-naming."""
-        if event.input.id in ("project_name", "namespace", "prefix", "suffix"):
+        if event.input.id in ("module_name", "namespace", "prefix", "suffix"):
             self.validate_form()
 
     def validate_form(self) -> None:
-        project_name = self.query_one("#project_name", Input).value
+        module_name = self.query_one("#module_name", Input).value
         namespace = self.query_one("#namespace", Input).value
         prefix = self.query_one("#prefix", Input).value
         suffix = self.query_one("#suffix", Input).value
@@ -134,14 +197,14 @@ class WizardScreen(Screen):
         valid_regex = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
         
         errors = []
-        if project_name and not re.match(valid_regex, project_name):
-            errors.append("Invalid Project Name (use only letters, numbers, and underscores, cannot start with number)")
+        if module_name and not re.match(valid_regex, module_name):
+            errors.append("Invalid Module Name (must follow C++ identifier rules)")
         if namespace and not re.match(valid_regex, namespace):
-            errors.append("Invalid Namespace (use only letters, numbers, and underscores, cannot start with number)")
+            errors.append("Invalid Namespace")
         if prefix and not re.match(valid_regex, prefix):
-            errors.append("Invalid Prefix (use only letters, numbers, and underscores, cannot start with number)")
+            errors.append("Invalid Prefix")
         if suffix and not re.match(valid_regex, suffix):
-            errors.append("Invalid Suffix (use only letters, numbers, and underscores, cannot start with number)")
+            errors.append("Invalid Suffix")
         
         msg_widget = self.query_one("#validation-msg", Static)
         submit_btn = self.query_one("#submit", Button)
@@ -169,11 +232,23 @@ class WizardScreen(Screen):
         self.query_one("#output_dir", Input).value = "./"
         self.query_one("#mode-url", RadioButton).value = True
         self.query_one("#gtest_url", Input).value = "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip"
+        
+        # Reset Advanced
+        self.query_one("#cpp_std", Select).value = "17"
+        self.query_one("#lib-static", RadioButton).value = True
+        self.query_one("#cpp_std_req", Switch).value = True
+        self.query_one("#export_cmds", Switch).value = True
+        self.query_one("#werror", Switch).value = False
+        self.query_one("#lto", Switch).value = False
+        self.query_one("#gen_format", Switch).value = True
+        self.query_one("#gen_tidy", Switch).value = True
+        self.query_one("#gen_readme", Switch).value = True
+        
         self.validate_form()
- 
+
     def submit_form(self) -> None:
         config_data = {
-            "project_name": self.query_one("#project_name", Input).value,
+            "module_name": self.query_one("#module_name", Input).value,
             "namespace": self.query_one("#namespace", Input).value,
             "prefix": self.query_one("#prefix", Input).value,
             "suffix": self.query_one("#suffix", Input).value,
@@ -182,6 +257,17 @@ class WizardScreen(Screen):
             "gtest_url": self.query_one("#gtest_url", Input).value,
             "gtest_local_version": self.query_one("#gtest_local_version", Select).value,
             "overwrite": self.query_one("#overwrite", Switch).value,
+            
+            # Advanced
+            "cpp_std": self.query_one("#cpp_std", Select).value,
+            "cpp_std_req": self.query_one("#cpp_std_req", Switch).value,
+            "export_cmds": self.query_one("#export_cmds", Switch).value,
+            "lib_type": "STATIC" if self.query_one("#lib-static", RadioButton).value else "SHARED",
+            "werror": self.query_one("#werror", Switch).value,
+            "lto": self.query_one("#lto", Switch).value,
+            "gen_format": self.query_one("#gen_format", Switch).value,
+            "gen_tidy": self.query_one("#gen_tidy", Switch).value,
+            "gen_readme": self.query_one("#gen_readme", Switch).value,
         }
         # Clean empty values but keep boolean
         config_data = {k: v for k, v in config_data.items() if v is not None and v != ""}
@@ -280,26 +366,69 @@ class ModuleGeneratorApp(App):
     CSS = """
     Screen {
         background: #0f111a;
+        align: center middle;
     }
     #wizard-container {
-        padding: 1 4;
+        padding: 0 4 1 4;
         background: #1a1e2a;
         border: solid #3b4261;
-        margin: 2 6;
+        margin: 1 1;
         height: auto;
+        max-height: 98vh;
+        min-width: 80;
+        max-width: 100;
+        align-horizontal: center;
+        overflow-y: auto;
     }
     #wizard-title {
         width: 100%;
         content-align: center middle;
         text-style: bold;
-        color: #89b4fa;
-        margin-bottom: 1;
+        color: #7aa2f7;
+        margin-bottom: 0;
         background: #24283b;
+        padding: 0 1;
+        border-bottom: double #7aa2f7;
+    }
+    .section {
+        border: solid #3b4261;
         padding: 1;
+        margin-bottom: 1;
+        height: auto;
+    }
+    .section-title {
+        color: #bb9af7;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    .col-container {
+        height: auto;
+        margin-bottom: 0;
+    }
+    .col {
+        width: 1fr;
+        padding-right: 1;
+        height: auto;
     }
     Label {
         color: #a9b1d6;
-        margin-top: 1;
+        margin-top: 0;
+    }
+    #gtest-mode-col {
+        max-width: 30;
+    }
+    RadioSet {
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+    }
+    RadioButton {
+        padding: 0 1;
+    }
+    .sub-title {
+        color: #9ece6a;
+        text-style: italic;
     }
     Input {
         margin-bottom: 0;
@@ -312,7 +441,8 @@ class ModuleGeneratorApp(App):
     }
     #validation-msg {
         height: 1;
-        margin-top: 1;
+        margin-top: 0;
+        margin-bottom: 1;
         color: #f7768e;
     }
     #switch-container {
@@ -323,9 +453,34 @@ class ModuleGeneratorApp(App):
     #switch-label {
         margin: 0 0 0 1;
     }
+    .switch-grid {
+        height: auto;
+        margin-top: 1;
+    }
+    .switch-col {
+        width: 1fr;
+        height: auto;
+    }
+    .switch-item {
+        height: auto;
+        align: left middle;
+    }
     #button-container {
         height: auto;
-        margin-top: 2;
+        margin-top: 1;
+        align: center middle;
+        background: #24283b;
+        padding: 1;
+        border-top: solid #3b4261;
+    }
+    Collapsible {
+        border: solid #3b4261;
+        margin-bottom: 1;
+        background: #1e2233;
+    }
+    CollapsibleTitle {
+        color: #bb9af7;
+        text-style: bold;
     }
     #gen-footer {
         height: auto;
@@ -344,6 +499,11 @@ class ModuleGeneratorApp(App):
     }
     #submit {
         margin-left: 1;
+        background: #7aa2f7;
+        color: #1a1b26;
+    }
+    #submit:hover {
+        background: #bb9af7;
     }
     #log {
         height: 1fr;
@@ -352,11 +512,6 @@ class ModuleGeneratorApp(App):
         color: #c0caf5;
         margin: 1 2;
         padding: 1 2;
-    }
-    #status-label {
-        padding: 1 4;
-        color: #7aa2f7;
-        text-style: bold;
     }
     """
 
@@ -383,7 +538,7 @@ class ModuleGeneratorApp(App):
                 # Manual extraction from widgets
                 wizard = self.screen
                 config_to_save = {
-                    "project_name": wizard.query_one("#project_name", Input).value,
+                    "module_name": wizard.query_one("#module_name", Input).value,
                     "namespace": wizard.query_one("#namespace", Input).value,
                     "prefix": wizard.query_one("#prefix", Input).value,
                     "suffix": wizard.query_one("#suffix", Input).value,
@@ -392,6 +547,16 @@ class ModuleGeneratorApp(App):
                     "gtest_url": wizard.query_one("#gtest_url", Input).value,
                     "gtest_local_version": wizard.query_one("#gtest_local_version", Select).value,
                     "overwrite": wizard.query_one("#overwrite", Switch).value,
+                    # Advanced
+                    "cpp_std": wizard.query_one("#cpp_std", Select).value,
+                    "cpp_std_req": wizard.query_one("#cpp_std_req", Switch).value,
+                    "export_cmds": wizard.query_one("#export_cmds", Switch).value,
+                    "lib_type": "STATIC" if wizard.query_one("#lib-static", RadioButton).value else "SHARED",
+                    "werror": wizard.query_one("#werror", Switch).value,
+                    "lto": wizard.query_one("#lto", Switch).value,
+                    "gen_format": wizard.query_one("#gen_format", Switch).value,
+                    "gen_tidy": wizard.query_one("#gen_tidy", Switch).value,
+                    "gen_readme": wizard.query_one("#gen_readme", Switch).value,
                 }
                 # Clean empty values
                 config_to_save = {k: v for k, v in config_to_save.items() if v is not None and v != ""}

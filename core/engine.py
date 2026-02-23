@@ -28,13 +28,24 @@ class Builder:
         project_name = replacements['{{PROJECT_NAME}}']
 
         for root, dirs, files in os.walk(self.template_dir):
+            # Optimization: Skip build artifacts and hidden folders
+            dirs[:] = [d for d in dirs if d not in ('build', 'bin', 'out') and not d.startswith('.')]
+            
             rel_path = os.path.relpath(root, self.template_dir)
-            target_root = os.path.normpath(os.path.join(self.output_path, rel_path))
+            if rel_path == ".":
+                target_root = self.output_path
+            else:
+                target_root = os.path.normpath(os.path.join(self.output_path, rel_path))
             
             if not os.path.exists(target_root):
                 os.makedirs(target_root)
 
             for file_name in files:
+                # Check if we should skip this file based on config
+                if file_name == '.clang-format' and not self.storyteller.config.get('gen_format', True): continue
+                if file_name == '.clang-tidy' and not self.storyteller.config.get('gen_tidy', True): continue
+                if file_name == 'README.md' and not self.storyteller.config.get('gen_readme', True): continue
+
                 # Use decorated name (Prefix + Project + Suffix) for file names
                 target_file_name = file_name.replace('PROJECT_NAME', self.storyteller.folder_name)
                 template_file_path = os.path.join(root, file_name)

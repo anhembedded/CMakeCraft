@@ -17,7 +17,7 @@ class Storyteller:
             self.chapters.append(("Configuration Validation", "Validating module parameters and requirements."))
             
             # Phase 2: Infrastructure
-            self.chapters.append(("Infrastructure Setup", f"Initializing project structure for '{self.config['project_name']}'."))
+            self.chapters.append(("Infrastructure Setup", f"Initializing project structure for '{self.config['module_name']}'."))
             
             # Phase 3: Template Processing
             self.chapters.append(("Source Generation", "Processing templates and generating source files."))
@@ -31,8 +31,8 @@ class Storyteller:
 
     def _validate_config(self):
         """Internal validation logic."""
-        if 'project_name' not in self.config:
-            raise ConfigError("Missing required requirement: 'project_name'")
+        if 'module_name' not in self.config:
+            raise ConfigError("Missing required requirement: 'module_name'")
         
         # Defaults
         self.config.setdefault('prefix', '')
@@ -70,9 +70,17 @@ class Storyteller:
             '{{AUTHOR}}': self.config.get('author', 'Artisan'),
             '{{DESCRIPTION}}': self.config.get('description', 'A module of great potential'),
             '{{PREFIX}}': self.config.get('prefix', ''),
-            '{{SUFFIX}}': self.config.get('suffix', '')
+            '{{SUFFIX}}': self.config.get('suffix', ''),
+            
+            # Advanced C++ Config
+            '{{CPP_STD}}': self.config.get('cpp_std', '17'),
+            '{{CPP_STD_REQ}}': 'ON' if self.config.get('cpp_std_req', True) else 'OFF',
+            '{{EXPORT_CMDS}}': 'ON' if self.config.get('export_cmds', True) else 'OFF',
+            '{{LIB_TYPE}}': self.config.get('lib_type', 'STATIC'),
+            '{{WERROR}}': 'ON' if self.config.get('werror', False) else 'OFF',
+            '{{LTO}}': 'ON' if self.config.get('lto', False) else 'OFF',
         }
 
     @property
     def folder_name(self):
-        return f"{self.config['prefix']}{self.config['project_name']}{self.config['suffix']}"
+        return f"{self.config['prefix']}{self.config['module_name']}{self.config['suffix']}"

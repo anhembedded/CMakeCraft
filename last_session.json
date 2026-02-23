@@ -1,9 +1,18 @@
 {
-    "project_name": "Lib_MotorDriver",
+    "module_name": "Lib_MotorDriver",
     "namespace": "Lib",
     "output_dir": "C:\\Users\\hoang\\Desktop\\TestLocalGtest",
     "gtest_is_local": true,
     "gtest_url": "https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip",
-    "gtest_local_version": "googletest-1.17.0",
-    "overwrite": true
+    "gtest_local_version": "googletest-1.16.x",
+    "overwrite": true,
+    "cpp_std": "20",
+    "cpp_std_req": true,
+    "export_cmds": true,
+    "lib_type": "STATIC",
+    "werror": true,
+    "lto": true,
+    "gen_format": true,
+    "gen_tidy": true,
+    "gen_readme": true
 }

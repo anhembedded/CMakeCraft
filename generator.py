@@ -8,7 +8,7 @@ from core.exceptions import ConfigError
 def main():
     parser = argparse.ArgumentParser(description="C++ Module Artisan - TUI Template Generator")
     parser.add_argument("-c", "--config", help="Path to JSON configuration file")
-    parser.add_argument("-n", "--name", help="Project name")
+    parser.add_argument("-n", "--name", help="Module name")
     parser.add_argument("-ns", "--namespace", help="C++ namespace")
     parser.add_argument("-p", "--prefix", help="Folder/File prefix", default="")
     parser.add_argument("-s", "--suffix", help="Folder/File suffix", default="")
@@ -29,6 +29,9 @@ def main():
         try:
             with open(session_file, 'r') as f:
                 config = json.load(f)
+                # Migration: project_name -> module_name
+                if 'project_name' in config and 'module_name' not in config:
+                    config['module_name'] = config.pop('project_name')
         except Exception:
             pass # Ignore corrupt session files
 
@@ -45,7 +48,7 @@ def main():
 
         # Merge CLI args
         if args.name: 
-            config['project_name'] = args.name
+            config['module_name'] = args.name
             cli_run = True
         if args.namespace: config['namespace'] = args.namespace
         if args.prefix: config['prefix'] = args.prefix
@@ -66,15 +69,15 @@ def main():
             from rich import print as rprint
 
             # In silent mode, name is mandatory if not in config
-            if 'project_name' not in config:
-                rprint("[bold red]ERROR:[/] project_name is required for silent execution.")
+            if 'module_name' not in config:
+                rprint("[bold red]ERROR:[/] module_name is required for silent execution.")
                 sys.exit(1)
             
             storyteller = Storyteller(config)
             phases = storyteller.weave_the_story()
             builder = Builder(storyteller)
 
-            rprint(f"[bold blue]>>>[/] [bold]C++ Module Artisan:[/] Initializing [cyan]{config['project_name']}[/]")
+            rprint(f"[bold blue]>>>[/] [bold]C++ Module Artisan:[/] Initializing [cyan]{config['module_name']}[/]")
             for title, desc in phases:
                 rprint(f"\n[bold blue]PHASE:[/] {title}")
                 rprint(f"  [dim]{desc}[/]")
