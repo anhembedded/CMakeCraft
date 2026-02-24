@@ -63,6 +63,16 @@ class Storyteller:
                 ")"
             )
 
+        # Build custom compiler argument
+        raw_path = self.config.get('cpp_compiler', '').strip().strip('"')
+        # Normalize to forward slashes for CMake compatibility and prevent escape issues
+        compiler_path = raw_path.replace('\\', '/')
+        compiler_arg = f"-DCMAKE_CXX_COMPILER=\"{compiler_path}\"" if compiler_path else ""
+
+        # Build custom generator argument
+        gen_name = self.config.get('cmake_generator', '').strip()
+        generator_arg = f"-G \"{gen_name}\"" if gen_name else ""
+
         return {
             '{{PROJECT_NAME}}': full_name,
             '{{NAMESPACE}}': self.config['namespace'],
@@ -77,8 +87,11 @@ class Storyteller:
             '{{CPP_STD_REQ}}': 'ON' if self.config.get('cpp_std_req', True) else 'OFF',
             '{{EXPORT_CMDS}}': 'ON' if self.config.get('export_cmds', True) else 'OFF',
             '{{LIB_TYPE}}': self.config.get('lib_type', 'STATIC'),
-            '{{WERROR}}': 'ON' if self.config.get('werror', False) else 'OFF',
-            '{{LTO}}': 'ON' if self.config.get('lto', False) else 'OFF',
+            '{{CLANG_TIDY}}': 'ON' if self.config.get('tidy_in_build', False) else 'OFF',
+            '{{COMPILER_ARG}}': compiler_arg,
+            '{{COMPILER_PATH}}': compiler_path,
+            '{{GENERATOR_ARG}}': generator_arg,
+            '{{GENERATOR_NAME}}': gen_name,
         }
 
     @property

@@ -4,37 +4,15 @@ param (
     [switch]$Example,
     [switch]$Clean,
     [switch]$Lint,
-    [switch]$Format,
-    [switch]$Coverage,
     [string]$Config = "Debug",
     [switch]$Verbose,
-    [switch]$All,
-    [switch]$Help
+    [switch]$All
 )
-
-if ($Help) {
-    Write-Host "Usage: ./auto_run.ps1 [options]" -ForegroundColor Cyan
-    Write-Host "Options:"
-    Write-Host "  -Build      Configure and build the project"
-    Write-Host "  -Test       Run unit tests"
-    Write-Host "  -Example    Build and run examples"
-    Write-Host "  -Clean      Remove the build directory"
-    Write-Host "  -Lint       Run static analysis (clang-tidy)"
-    Write-Host "  -Format     Format code (clang-format)"
-    Write-Host "  -Coverage   Generate code coverage report"
-    Write-Host "  -Config     Build configuration (Debug, Release, etc.) [Default: Debug]"
-    Write-Host "  -Verbose    Enable verbose output"
-    Write-Host "  -All        Run all steps (Clean, Build, Test, Example, Lint, Format)"
-    Write-Host "  -Help       Show this help message"
-    Read-Host "Press Enter to exit..."
-    exit 0
-}
 
 function Test-CommandAvailability {
     param ([string]$CommandName)
     if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
         Write-Error "Error: '$CommandName' is not installed or not in PATH."
-        Read-Host "Press Enter to exit..."
         exit 1
     }
 }
@@ -50,12 +28,11 @@ function Invoke-Step {
     }
     catch {
         Write-Error "Step '$StepName' failed: $_"
-        Read-Host "Press Enter to exit..."
         exit 1
     }
 }
 
-if (-not ($Build -or $Test -or $Example -or $Clean -or $Lint -or $Format -or $Coverage)) { $All = $true }
+if (-not ($Build -or $Test -or $Example -or $Clean -or $Lint)) { $All = $true }
 
 Test-CommandAvailability "cmake"
 $SourceDir = $PSScriptRoot + "/.."
@@ -73,36 +50,30 @@ if ($Build -or $All) {
         
         # Determine the best generator available
         $Generator = $null
-        if (Get-Command "ninja" -ErrorAction SilentlyContinue) {
+        $CustomGen = "{{GENERATOR_NAME}}"
+        if ($CustomGen) {
+            $Generator = $CustomGen
+        }
+        elseif (Get-Command "ninja" -ErrorAction SilentlyContinue) {
             $Generator = "Ninja"
         }
         elseif (Get-Command "nmake" -ErrorAction SilentlyContinue) {
             $Generator = "NMake Makefiles"
         }
-        elseif ($env:OS -eq "Windows_NT") {
-            # If no command-line tools are in PATH, CMake usually defaults to NMake and fails.
-            # We check if cl.exe is available to see if we're in a dev environment.
-            if (-not (Get-Command "cl.exe" -ErrorAction SilentlyContinue)) {
-                Write-Host "`n[!] No C++ compiler (cl.exe) or build tool (ninja, nmake) found in PATH." -ForegroundColor Yellow
-                Write-Host "[!] TIP: Please run this script from 'Developer PowerShell for VS'" -ForegroundColor Cyan
-                Write-Host "    or 'Developer Command Prompt for VS' to enable build tools.`n" -ForegroundColor Cyan
-            }
-        }
         
         if ($Generator) { $BuildArgs += "-G", $Generator }
         if ($Example -or $All) { $BuildArgs += "-DBUILD_EXAMPLES=ON" } else { $BuildArgs += "-DBUILD_EXAMPLES=OFF" }
-        if ($Coverage) { $BuildArgs += "-DENABLE_COVERAGE=ON" }
+        
+        # Add custom compiler if specified during generation
+        $CustomCompiler = '{{COMPILER_ARG}}'
+        if ($CustomCompiler) { $BuildArgs += $CustomCompiler }
         
         Write-Host "Configuring..."
         & cmake $BuildArgs
-        if ($LASTEXITCODE -ne 0) { 
-            Write-Error "Configuration failed. Check if your compiler is correctly set up."
-            throw "Configuration failed" 
-        }
+        if ($LASTEXITCODE -ne 0) { throw "Configuration failed" }
 
         Write-Host "Building..."
-        # Use all available CPU cores for faster build
-        $BuildCmd = @("--build", $BuildDir, "--config", $Config, "--parallel", $env:NUMBER_OF_PROCESSORS)
+        $BuildCmd = @("--build", $BuildDir, "--config", $Config)
         if ($Verbose) { $BuildCmd += "--verbose" }
         & cmake $BuildCmd
         if ($LASTEXITCODE -ne 0) { throw "Build failed" }
@@ -116,33 +87,11 @@ if ($Test -or $All) {
     }
 }
 
-if ($Format -or $All) {
-    Invoke-Step "Format Code" {
-        if (Get-Command "clang-format" -ErrorAction SilentlyContinue) {
-            Write-Host "Formatting source files..."
-            $Files = Get-ChildItem -Path "$SourceDir/src", "$SourceDir/interface", "$SourceDir/inc" -Include *.cpp, *.h -Recurse -ErrorAction SilentlyContinue
-            if ($Files) {
-                foreach ($f in $Files) {
-                    & clang-format -i $f.FullName
-                }
-            }
-        }
-        else {
-            Write-Warning "clang-format not found. Skipping format step."
-        }
-    }
-}
-
-if ($Lint -or $All) {
-    Invoke-Step "Static Analysis (Clang-Tidy)" {
-        if (Get-Command "clang-tidy" -ErrorAction SilentlyContinue) {
-            $DbPath = "$BuildDir/compile_commands.json"
-            if (-not (Test-Path $DbPath)) {
-                Write-Host "compile_commands.json not found. Running configuration first..."
-                & cmake -S $SourceDir -B $BuildDir -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-            }
-            
-            $Files = Get-ChildItem -Path "$SourceDir/src" -Filter *.cpp -Recurse -ErrorAction SilentlyContinue
+if (($Lint -or $All) -and ("{{CLANG_TIDY}}" -eq "ON")) {
+    Invoke-Step "Lint" {
+        if ("{{COMPILER_PATH}}" -like "*clang*") {
+            Test-CommandAvailability "clang-tidy"
+            $Files = Get-ChildItem -Path "$SourceDir/src" -Filter *.cpp -Recurse
             if ($Files) {
                 foreach ($f in $Files) {
                     Write-Host "Linting $($f.Name)..."
@@ -151,31 +100,7 @@ if ($Lint -or $All) {
             }
         }
         else {
-            Write-Warning "clang-tidy not found. Skipping lint step."
-        }
-    }
-}
-
-if ($Coverage) {
-    Invoke-Step "Code Coverage" {
-        if ($env:OS -ne "Windows_NT") {
-            if (Get-Command "lcov" -ErrorAction SilentlyContinue) {
-                Write-Host "Generating coverage report..."
-                & lcov --capture --directory . --output-file coverage.info
-                & lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' --output-file coverage.info
-                & genhtml coverage.info --output-directory coverage_report
-                Write-Host "Coverage report generated in: coverage_report/index.html" -ForegroundColor Green
-                # Auto-open the report in the browser
-                if (Test-Path "$SourceDir/build/coverage_report/index.html") {
-                    Start-Process "$SourceDir/build/coverage_report/index.html"
-                }
-            }
-            else {
-                Write-Warning "lcov not found. Skipping coverage."
-            }
-        }
-        else {
-            Write-Host "Native lcov is usually for Linux. For Windows coverage, use OpenCppCoverage or VS tools." -ForegroundColor Yellow
+            Write-Host "Skipping Lint: Clang-Tidy only works with Clang compiler." -ForegroundColor Yellow
         }
     }
 }
@@ -195,5 +120,4 @@ if ($Example -or $All) {
 }
 
 Write-Host "All requested steps completed successfully!" -ForegroundColor Green
-Read-Host "Press Enter to exit..."
 exit 0

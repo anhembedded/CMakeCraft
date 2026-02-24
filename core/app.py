@@ -135,6 +135,26 @@ class WizardScreen(Screen):
                 with Horizontal(classes="switch-grid"):
                     with Vertical(classes="switch-col"):
                         yield Label("CMake Settings", classes="sub-title")
+                        yield Label("C++ Compiler Path (Optional):")
+                        yield Input(
+                            value=self.initial_data.get("cpp_compiler", ""),
+                            placeholder="e.g. g++", 
+                            id="cpp_compiler",
+                            tooltip="Optional path to a specific C++ compiler (sets CMAKE_CXX_COMPILER)."
+                        )
+                        yield Label("CMake Generator (Optional):")
+                        yield Select(
+                            [
+                                ("Default", ""),
+                                ("Ninja", "Ninja"),
+                                ("Unix Makefiles", "Unix Makefiles"),
+                                ("MinGW Makefiles", "MinGW Makefiles"),
+                                ("NMake Makefiles", "NMake Makefiles"),
+                            ],
+                            value=self.initial_data.get("cmake_generator", ""),
+                            id="cmake_generator",
+                            tooltip="Optional: Override the default CMake generator (sets -G)."
+                        )
                         with Horizontal(classes="switch-item"):
                             yield Switch(value=self.initial_data.get("cpp_std_req", True), id="cpp_std_req")
                             yield Label("Std Required")
@@ -150,6 +170,9 @@ class WizardScreen(Screen):
                         with Horizontal(classes="switch-item"):
                             yield Switch(value=self.initial_data.get("lto", False), id="lto")
                             yield Label("LTO")
+                        with Horizontal(classes="switch-item"):
+                            yield Switch(value=self.initial_data.get("tidy_in_build", False), id="tidy_in_build")
+                            yield Label("Lint on Build")
 
                     with Vertical(classes="switch-col"):
                         yield Label("Templates", classes="sub-title")
@@ -236,10 +259,13 @@ class WizardScreen(Screen):
         # Reset Advanced
         self.query_one("#cpp_std", Select).value = "17"
         self.query_one("#lib-static", RadioButton).value = True
+        self.query_one("#cpp_compiler", Input).value = ""
+        self.query_one("#cmake_generator", Select).value = ""
         self.query_one("#cpp_std_req", Switch).value = True
         self.query_one("#export_cmds", Switch).value = True
         self.query_one("#werror", Switch).value = False
         self.query_one("#lto", Switch).value = False
+        self.query_one("#tidy_in_build", Switch).value = False
         self.query_one("#gen_format", Switch).value = True
         self.query_one("#gen_tidy", Switch).value = True
         self.query_one("#gen_readme", Switch).value = True
@@ -259,12 +285,15 @@ class WizardScreen(Screen):
             "overwrite": self.query_one("#overwrite", Switch).value,
             
             # Advanced
+            "cpp_compiler": self.query_one("#cpp_compiler", Input).value,
+            "cmake_generator": self.query_one("#cmake_generator", Select).value,
             "cpp_std": self.query_one("#cpp_std", Select).value,
             "cpp_std_req": self.query_one("#cpp_std_req", Switch).value,
             "export_cmds": self.query_one("#export_cmds", Switch).value,
             "lib_type": "STATIC" if self.query_one("#lib-static", RadioButton).value else "SHARED",
             "werror": self.query_one("#werror", Switch).value,
             "lto": self.query_one("#lto", Switch).value,
+            "tidy_in_build": self.query_one("#tidy_in_build", Switch).value,
             "gen_format": self.query_one("#gen_format", Switch).value,
             "gen_tidy": self.query_one("#gen_tidy", Switch).value,
             "gen_readme": self.query_one("#gen_readme", Switch).value,
@@ -548,12 +577,15 @@ class ModuleGeneratorApp(App):
                     "gtest_local_version": wizard.query_one("#gtest_local_version", Select).value,
                     "overwrite": wizard.query_one("#overwrite", Switch).value,
                     # Advanced
+                    "cpp_compiler": wizard.query_one("#cpp_compiler", Input).value,
+                    "cmake_generator": wizard.query_one("#cmake_generator", Select).value,
                     "cpp_std": wizard.query_one("#cpp_std", Select).value,
                     "cpp_std_req": wizard.query_one("#cpp_std_req", Switch).value,
                     "export_cmds": wizard.query_one("#export_cmds", Switch).value,
                     "lib_type": "STATIC" if wizard.query_one("#lib-static", RadioButton).value else "SHARED",
                     "werror": wizard.query_one("#werror", Switch).value,
                     "lto": wizard.query_one("#lto", Switch).value,
+                    "tidy_in_build": wizard.query_one("#tidy_in_build", Switch).value,
                     "gen_format": wizard.query_one("#gen_format", Switch).value,
                     "gen_tidy": wizard.query_one("#gen_tidy", Switch).value,
                     "gen_readme": wizard.query_one("#gen_readme", Switch).value,

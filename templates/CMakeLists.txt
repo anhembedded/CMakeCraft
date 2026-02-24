@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
+
+# Optional Compiler Override (Set during generation)
+if(NOT CMAKE_CXX_COMPILER AND NOT "{{COMPILER_PATH}}" STREQUAL "")
+    set(CMAKE_CXX_COMPILER "{{COMPILER_PATH}}")
+endif()
+
 project({{PROJECT_NAME}} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD {{CPP_STD}})
@@ -29,15 +35,21 @@ if({{LTO}})
     endif()
 endif()
 
-# Coverage support
-option(ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
-if(ENABLE_COVERAGE AND NOT MSVC)
-    add_compile_options(--coverage -O0 -g)
-    add_link_options(--coverage)
+# Static Analysis (Clang-Tidy)
+if({{CLANG_TIDY}} AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if(CLANG_TIDY_EXE)
+        message(STATUS "Integrating Clang-Tidy into build process (Clang detected)")
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+    else()
+        message(WARNING "Clang-Tidy was requested but the executable was not found.")
+    endif()
+elseif({{CLANG_TIDY}})
+    message(STATUS "Clang-Tidy disabled: Only supports Clang compiler (Detected: ${CMAKE_CXX_COMPILER_ID})")
 endif()
 
 # Create library
-add_library({{PROJECT_NAME}} {{LIB_TYPE}} src/{{PROJECT_NAME}}.cpp)
+add_library({{PROJECT_NAME}} STATIC src/{{PROJECT_NAME}}.cpp)
 
 # Include directories
 target_include_directories({{PROJECT_NAME}}
@@ -59,13 +71,3 @@ option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
-
-# Helpful messages
-message(STATUS "-----------------------------------------------------------")
-message(STATUS "  {{PROJECT_NAME}} Configuration Complete")
-message(STATUS "  - Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "  - Testing:    ${BUILD_TESTING}")
-message(STATUS "  - Coverage:   ${ENABLE_COVERAGE}")
-message(STATUS "-----------------------------------------------------------")
-message(STATUS "💡 TIP: Use './script/auto_run.ps1' for one-click build & test.")
-message(STATUS "-----------------------------------------------------------")
